@@ -148,9 +148,9 @@ class SnowflakeStatementV1 implements Statement, SnowflakeStatement {
    */
   @Override
   public ResultSet executeQuery(String sql) throws SQLException {
-    logger.info("executeQuery SnowflakeStatementV1 thread id: {}", String.valueOf(Thread.currentThread().getId()));
-      logger.info("executeQuery SnowflakeStatementV1 context: TraceID: {}, SpanID: {}", 
-          Span.current().getSpanContext().getTraceId(), Span.current().getSpanContext().getSpanId());
+
+    logger.info("\u001B[36m" + "SnowflakeStatementV1.executeQuery span: {}" + "\u001B[0m", Span.current().toString());
+
     ExecTimeTelemetryData execTimeData =
         new ExecTimeTelemetryData("ResultSet Statement.executeQuery(String)", this.batchID);
     raiseSQLExceptionIfStatementIsClosed();
@@ -358,6 +358,8 @@ class SnowflakeStatementV1 implements Statement, SnowflakeStatement {
           sfBaseStatement.execute(
               sql, parameterBindings, SFBaseStatement.CallingMethod.EXECUTE, execTimeData);
       sfResultSet.setSession(this.connection.getSFBaseSession());
+      // DEBUG the type of sfBaseStatement
+      logger.info("sfBaseStatement's class name: ", sfBaseStatement.getClass().getName());
       resultSetMetadataHandler(sfResultSet);
       if (resultSet != null && !resultSet.isClosed()) {
         openResultSets.add(resultSet);

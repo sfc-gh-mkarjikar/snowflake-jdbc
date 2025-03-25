@@ -200,9 +200,9 @@ public class SnowflakeConnectionV1 implements Connection, SnowflakeConnection {
   @Override
   public Statement createStatement() throws SQLException {
     raiseSQLExceptionIfConnectionIsClosed();
-    logger.info("createStatement SnowflakeConnectionV1 thread id: {}", String.valueOf(Thread.currentThread().getId()));
-    logger.info("createStatement SnowflakeStatementV1 context: TraceID: {}, SpanID: {}", 
-        Span.current().getSpanContext().getTraceId(), Span.current().getSpanContext().getSpanId());
+
+    logger.info("\u001B[36m" + "SnowflakeStatementV1.createStatement span: {}" + "\u001B[0m", Span.current().toString());
+
     Statement stmt = createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
     openStatements.add(stmt);
     return stmt;

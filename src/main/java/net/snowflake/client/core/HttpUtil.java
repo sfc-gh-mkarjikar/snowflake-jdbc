@@ -808,15 +808,13 @@ public class HttpUtil {
 
     try {
       // Propagate trace context
-      tracePropagator.inject(
-        Context.current(),
-        httpRequest,
-        (request, name, value) -> request.setHeader(name, value));
+     tracePropagator.inject(
+       Context.current(),
+       httpRequest,
+       (request, name, value) -> request.setHeader(name, value));
 
-      // logger.info("Attempting to inject trace context into request: {}", httpRequest.toString());
-      logger.info("executeRequestInternal HttpUtil context: TraceID: {}, SpanID: {}", 
-        Span.current().getSpanContext().getTraceId(), Span.current().getSpanContext().getSpanId());
-      logger.info("executeRequestInternal HttpUtil thread id: {}", String.valueOf(Thread.currentThread().getId()));
+      logger.info( "\u001B[36m" + "executeRequestInternal HttpUtil span: {}" + "\u001B[0m", Span.current().toString());
+
       response =
           RestRequest.execute(
               httpClient,
