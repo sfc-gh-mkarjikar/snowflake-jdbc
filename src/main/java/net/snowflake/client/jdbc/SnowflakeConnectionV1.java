@@ -8,6 +8,10 @@ import static net.snowflake.client.jdbc.ErrorCode.FEATURE_UNSUPPORTED;
 import static net.snowflake.client.jdbc.ErrorCode.INVALID_CONNECT_STRING;
 
 import com.google.common.base.Strings;
+
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Context;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Array;
@@ -196,6 +200,9 @@ public class SnowflakeConnectionV1 implements Connection, SnowflakeConnection {
   @Override
   public Statement createStatement() throws SQLException {
     raiseSQLExceptionIfConnectionIsClosed();
+
+    logger.info("\u001B[36m" + "SnowflakeStatementV1.createStatement span: {}" + "\u001B[0m", Span.current().toString());
+
     Statement stmt = createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
     openStatements.add(stmt);
     return stmt;

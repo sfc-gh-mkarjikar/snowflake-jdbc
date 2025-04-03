@@ -11,10 +11,15 @@ import static net.snowflake.client.core.SessionUtil.MIN_CLIENT_CHUNK_SIZE;
 import static net.snowflake.client.jdbc.SnowflakeUtil.systemGetProperty;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -22,6 +27,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import net.minidev.json.JSONObject;
 import net.snowflake.client.core.BasicEvent.QueryState;
 import net.snowflake.client.core.bind.BindException;
 import net.snowflake.client.core.bind.BindUploader;
@@ -45,6 +52,7 @@ import org.apache.http.client.methods.HttpRequestBase;
 public class SFStatement extends SFBaseStatement {
 
   private static final SFLogger logger = SFLoggerFactory.getLogger(SFStatement.class);
+  
 
   private SFSession session;
 
@@ -401,6 +409,51 @@ public class SFStatement extends SFBaseStatement {
       }
 
       StmtUtil.StmtInput stmtInput = new StmtUtil.StmtInput();
+
+      try {
+        Class<?> spanClass = Class.forName("io.opentelemetry.api.trace.Span", 
+          false, Thread.currentThread().getContextClassLoader());
+        Object span = spanClass.getMethod("current").invoke(null);
+
+        logger.info("SFStatement.executeHelper span: {}", span.toString());
+
+        Class<?> spanClass2 = Class.forName("net.snowflake.client.jdbc.internal.opentelemetry.api.trace.Span", 
+          false, Thread.currentThread().getContextClassLoader());
+        Object span2 = spanClass2.getMethod("current").invoke(null);
+
+        logger.info("SFStatement.executeHelper span: {}", span2.toString());
+
+        // Object spanContext = span.getClass().getMethod("getSpanContext").invoke(null);
+        // String traceId = (String) spanContext.getClass().getMethod("getTraceId").invoke(null);
+        // String spanId = (String) spanContext.getClass().getMethod("getSpanId").invoke(null);
+
+        // logger.info("SFStatement.executeHelper context: TraceID: {}, SpanID: {}", traceId, spanId);
+
+        // Set additional headers for trace propagation
+        Map<String, String> additionalHeaders = new HashMap<String, String>();
+        
+        // // Manually inject headers
+        // String version = "00";
+        // String traceFlags = "00";
+        // String traceParent = version + "-" + traceId + "-" + spanId + "-" + traceFlags;
+
+        // if (traceId.matches("0+") || spanId.matches("0+")) {
+        //   logger.info("SFStatement.executeHelper: TraceID or SpanID is all 0s, not setting traceparent");
+        // } else {
+        //   additionalHeaders.put(
+        //       "traceparent",
+        //       traceParent);
+        // }
+
+        if (!additionalHeaders.isEmpty()) stmtInput.setAdditionalHttpHeadersForSnowsight(additionalHeaders);
+
+      } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+        // Class doesn't exist, continue with rest of program
+        logger.info("SFStatement.executeHelper: OpenTelemetry Reflection failed Case 1: {}", e.getMessage());
+      } catch (Exception e) {
+        logger.info("SFStatement.executeHelper: OpenTelemetry Reflection failed Case 2: {}", e.getMessage());
+      }
+
       stmtInput
           .setSql(sql)
           .setMediaType(mediaType)
@@ -424,7 +477,8 @@ public class SFStatement extends SFBaseStatement {
           .setOCSPMode(session.getOCSPMode())
           .setHttpClientSettingsKey(session.getHttpClientKey())
           .setMaxRetries(session.getMaxHttpRetries())
-          .setQueryContextDTO(session.isAsyncSession() ? null : session.getQueryContextDTO());
+          .setQueryContextDTO(session.isAsyncSession() ? null : session.getQueryContextDTO())
+          ; // Inject context if it exists
       if (bindStagePath != null) {
         stmtInput.setBindValues(null).setBindStage(bindStagePath);
         // use the new SQL format for this query so dates/timestamps are parsed correctly

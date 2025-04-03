@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import io.opentelemetry.api.trace.Span;
 import net.snowflake.client.core.CancellationReason;
 import net.snowflake.client.core.ExecTimeTelemetryData;
 import net.snowflake.client.core.ParameterBindingDTO;
@@ -146,9 +148,11 @@ class SnowflakeStatementV1 implements Statement, SnowflakeStatement {
    */
   @Override
   public ResultSet executeQuery(String sql) throws SQLException {
+
+    logger.info("\u001B[36m" + "SnowflakeStatementV1.executeQuery span: {}" + "\u001B[0m", Span.current().toString());
+
     ExecTimeTelemetryData execTimeData =
         new ExecTimeTelemetryData("ResultSet Statement.executeQuery(String)", this.batchID);
-
     raiseSQLExceptionIfStatementIsClosed();
     ResultSet rs = executeQueryInternal(sql, false, null, execTimeData);
     execTimeData.setQueryEnd();
@@ -354,6 +358,8 @@ class SnowflakeStatementV1 implements Statement, SnowflakeStatement {
           sfBaseStatement.execute(
               sql, parameterBindings, SFBaseStatement.CallingMethod.EXECUTE, execTimeData);
       sfResultSet.setSession(this.connection.getSFBaseSession());
+      // DEBUG the type of sfBaseStatement
+      logger.info("sfBaseStatement's class name: ", sfBaseStatement.getClass().getName());
       resultSetMetadataHandler(sfResultSet);
       if (resultSet != null && !resultSet.isClosed()) {
         openResultSets.add(resultSet);

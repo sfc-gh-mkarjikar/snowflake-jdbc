@@ -12,6 +12,11 @@ import com.amazonaws.ClientConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.microsoft.azure.storage.OperationContext;
+
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -794,6 +799,7 @@ public class HttpUtil {
     StringWriter writer = null;
     CloseableHttpResponse response = null;
     Stopwatch stopwatch = null;
+    W3CTraceContextPropagator tracePropagator = W3CTraceContextPropagator.getInstance();
 
     if (logger.isDebugEnabled()) {
       stopwatch = new Stopwatch();
@@ -801,6 +807,14 @@ public class HttpUtil {
     }
 
     try {
+      // Propagate trace context
+     tracePropagator.inject(
+       Context.current(),
+       httpRequest,
+       (request, name, value) -> request.setHeader(name, value));
+
+      logger.info( "\u001B[36m" + "executeRequestInternal HttpUtil span: {}" + "\u001B[0m", Span.current().toString());
+
       response =
           RestRequest.execute(
               httpClient,
